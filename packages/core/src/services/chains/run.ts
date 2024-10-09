@@ -4,10 +4,12 @@ import { ProviderApiKey, Workspace } from '../../browser'
 import {
   ChainEvent,
   ChainStepResponse,
+  ErrorableEntity,
   LogSources,
   RunErrorCodes,
   StreamType,
 } from '../../constants'
+import { Result, TypedResult } from '../../lib'
 import { generateUUIDIdentifier } from '../../lib/generateUUID'
 import { ai } from '../ai'
 import { ChainError } from './ChainErrors'
@@ -15,47 +17,35 @@ import { ChainStreamConsumer } from './ChainStreamConsumer'
 import { consumeStream } from './ChainStreamConsumer/consumeStream'
 import { ChainValidator, ConfigOverrides } from './ChainValidator'
 import { ProviderProcessor } from './ProviderProcessor'
-import { Result, TypedResult } from '../../lib'
 
 export type CachedApiKeys = Map<string, ProviderApiKey>
 
 async function handleError(error: ChainError<RunErrorCodes>) {
-  // TODO: Extract this into a service responsible of
-  // saving the error in the database
-  // AiError are a special case. We want to save the error inside
-  // ProviderProcessor class that's where the error is catched.
-  // We throw those error and they arrive here but we filter it
-  // We do this because provider logs will have a pointer to the error
-  // providerLog.error_id = error.id
-  // This way is easier for use to know when a provider log has errors by
-  // joining the tables and in the UI check if providerLog.error_id is not null
-  //
-  // Also this service will need `errorableType` and `errorableUuid`
-  // this way we associate the polymorphic relationship with the error
-  // to the run documentLog.uuid or evaluationResult.uuid
   return error
 }
 
-type ChainResponse<T extends StreamType> = TypedResult<ChainStepResponse<T>, ChainError<RunErrorCodes>>
+export type ChainResponse<T extends StreamType> = TypedResult<
+  ChainStepResponse<T>,
+  ChainError<RunErrorCodes>
+>
 export async function runChain({
   workspace,
   chain,
   providersMap,
   source,
   generateUUID = generateUUIDIdentifier,
+  errorableType,
   configOverrides,
 }: {
   workspace: Workspace
   chain: Chain
   generateUUID?: () => string
+  errorableType: ErrorableEntity
   source: LogSources
   providersMap: CachedApiKeys
   configOverrides?: ConfigOverrides
 }) {
-  // TODO: this hast to be renamed to errorableUuid
-  // We want to link 2 different entities with the errors
-  // the AI run produce: Document logs and Evaluation results
-  const documentLogUuid = generateUUID()
+  const errorableUuid = generateUUID()
 
   let responseResolve: (value: ChainResponse<StreamType>) => void
 
@@ -72,7 +62,8 @@ export async function runChain({
         chain,
         providersMap,
         controller,
-        documentLogUuid,
+        errorableUuid,
+        errorableType,
         configOverrides,
       })
         .then((okResponse) => {
@@ -89,7 +80,7 @@ export async function runChain({
     stream,
     response,
     resolvedContent: chain.rawText,
-    documentLogUuid,
+    errorableUuid,
     duration: response.then(() => Date.now() - chainStartTime),
   }
 }
@@ -102,7 +93,8 @@ async function runStep({
   controller,
   previousCount = 0,
   previousResponse,
-  documentLogUuid,
+  errorableUuid,
+  errorableType,
   configOverrides,
 }: {
   workspace: Workspace
@@ -110,8 +102,9 @@ async function runStep({
   chain: Chain
   providersMap: CachedApiKeys
   controller: ReadableStreamDefaultController
+  errorableUuid: string
+  errorableType: ErrorableEntity
   previousCount?: number
-  documentLogUuid: string
   previousResponse?: ChainStepResponse<StreamType>
   configOverrides?: ConfigOverrides
 }) {
@@ -126,7 +119,6 @@ async function runStep({
   const streamConsumer = new ChainStreamConsumer({
     controller,
     previousCount,
-    documentLogUuid,
   })
 
   try {
@@ -167,7 +159,8 @@ async function runStep({
         workspace,
         source,
         chain,
-        documentLogUuid,
+        errorableUuid,
+        errorableType,
         providersMap,
         controller,
         previousCount: messageCount,

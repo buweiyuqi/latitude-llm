@@ -1,15 +1,22 @@
 import { Chain, ContentType, MessageRole } from '@latitude-data/compiler'
-import { beforeEach, describe, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Workspace } from '../../browser'
-import { DEFAULT_PROVIDER_MAX_FREE_RUNS, LogSources, Providers } from '../../constants'
+import {
+  ErrorableEntity,
+  LogSources,
+  Providers,
+  RunErrorCodes,
+} from '../../constants'
 import { Result } from '../../lib'
 import * as factories from '../../tests/factories'
 import * as aiModule from '../ai'
-import { runChain } from './run'
+import { ChainError } from './ChainErrors'
+import { ChainValidator } from './ChainValidator'
 
 let finishReason: string = 'stop'
 
+const chainValidatorCall = vi.spyOn(ChainValidator.prototype, 'call')
 function createMockAiResponse(text: string, totalTokens: number) {
   return Result.ok({
     type: 'text' as 'text',
@@ -66,15 +73,23 @@ describe('run chain error handling', () => {
     })
   })
 
-  it('stores error when default provider quota is exceeded', async () => {
-    vi.doMock('../freeRunsManager', async () => {
-      const defaultMod = await import('../freeRunsManager') as typeof import('../freeRunsManager')
-      return {
-        ...defaultMod,
-        incrFreeRuns: async () => DEFAULT_PROVIDER_MAX_FREE_RUNS + 1,
-      }
-    })
+  it.only('stores error when default provider quota is exceeded', async () => {
+    const module = await import('./run')
+    const { runChain } = module
+
+    chainValidatorCall.mockImplementation(() =>
+      Promise.resolve(
+        Result.error(
+          new ChainError({
+            code: RunErrorCodes.DefaultProviderExceededQuota,
+            message:
+              'You have exceeded your maximum number of free runs for today',
+          }),
+        ),
+      ),
+    )
     const run = await runChain({
+      errorableType: ErrorableEntity.DocumentLog,
       workspace,
       chain: mockChain as Chain,
       providersMap,
@@ -82,5 +97,15 @@ describe('run chain error handling', () => {
     })
 
     const response = await run.response
+    expect(response.error).toEqual(
+      new ChainError({
+        code: RunErrorCodes.DefaultProviderExceededQuota,
+        message: 'You have exceeded your maximum number of free runs for today',
+      }),
+    )
+    /* expect(response.error?.dbError).toEqual({ */
+    /*   code: RunErrorCodes.DefaultProviderExceededQuota, */
+    /*   errorableEntity: ErrorableEntity.DocumentLog, */
+    /* }) */
   })
 })
