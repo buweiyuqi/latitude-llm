@@ -15,6 +15,7 @@ import { ChainStreamConsumer } from './ChainStreamConsumer'
 import { consumeStream } from './ChainStreamConsumer/consumeStream'
 import { ChainValidator, ConfigOverrides } from './ChainValidator'
 import { ProviderProcessor } from './ProviderProcessor'
+import { Result, TypedResult } from '../../lib'
 
 export type CachedApiKeys = Map<string, ProviderApiKey>
 
@@ -35,6 +36,7 @@ async function handleError(error: ChainError<RunErrorCodes>) {
   return error
 }
 
+type ChainResponse<T extends StreamType> = TypedResult<ChainStepResponse<T>, ChainError<RunErrorCodes>>
 export async function runChain({
   workspace,
   chain,
@@ -55,16 +57,16 @@ export async function runChain({
   // the AI run produce: Document logs and Evaluation results
   const documentLogUuid = generateUUID()
 
-  let responseResolve: (value: ChainStepResponse<StreamType>) => void
+  let responseResolve: (value: ChainResponse<StreamType>) => void
 
-  const response = new Promise<ChainStepResponse<StreamType>>((resolve) => {
+  const response = new Promise<ChainResponse<StreamType>>((resolve) => {
     responseResolve = resolve
   })
 
   const chainStartTime = Date.now()
   const stream = new ReadableStream<ChainEvent>({
     start(controller) {
-      iterate({
+      runStep({
         workspace,
         source,
         chain,
@@ -73,9 +75,12 @@ export async function runChain({
         documentLogUuid,
         configOverrides,
       })
-        .then(responseResolve)
+        .then((okResponse) => {
+          responseResolve(Result.ok(okResponse))
+        })
         .catch(async (e: ChainError<RunErrorCodes>) => {
-          await handleError(e)
+          const error = await handleError(e)
+          responseResolve(Result.error(error))
         })
     },
   })
@@ -89,7 +94,7 @@ export async function runChain({
   }
 }
 
-async function iterate({
+async function runStep({
   workspace,
   source,
   chain,
@@ -158,7 +163,7 @@ async function iterate({
       return response
     } else {
       streamConsumer.stepCompleted(response)
-      return iterate({
+      return runStep({
         workspace,
         source,
         chain,
