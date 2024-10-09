@@ -95,7 +95,7 @@ export async function createEvaluationResult(
 
     return Result.ok({
       ...evaluationResult,
-      result: metadata[0]!.result,
+      result: result?.result,
     })
   }, db)
 }

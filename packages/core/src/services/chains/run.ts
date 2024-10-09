@@ -12,6 +12,7 @@ import {
 import { Result, TypedResult } from '../../lib'
 import { generateUUIDIdentifier } from '../../lib/generateUUID'
 import { ai } from '../ai'
+import { createRunError } from '../runErrors/create'
 import { ChainError } from './ChainErrors'
 import { ChainStreamConsumer } from './ChainStreamConsumer'
 import { consumeStream } from './ChainStreamConsumer/consumeStream'
@@ -20,8 +21,30 @@ import { ProviderProcessor } from './ProviderProcessor'
 
 export type CachedApiKeys = Map<string, ProviderApiKey>
 
-async function handleError(error: ChainError<RunErrorCodes>) {
-  return error
+async function handleError({
+  error,
+  errorableUuid,
+  errorableType,
+}: {
+  errorableUuid: string
+  errorableType: ErrorableEntity
+  error: ChainError<RunErrorCodes>
+}) {
+  try {
+    const dbError = await createRunError({
+      data: {
+        errorableUuid,
+        errorableType,
+        code: error.errorCode,
+        message: error.message,
+        details: error.details,
+      },
+    }).then((r) => r.unwrap())
+    error.dbError = dbError
+    return error
+  } catch (e) {
+    return error
+  }
 }
 
 export type ChainResponse<T extends StreamType> = TypedResult<
@@ -70,7 +93,11 @@ export async function runChain({
           responseResolve(Result.ok(okResponse))
         })
         .catch(async (e: ChainError<RunErrorCodes>) => {
-          const error = await handleError(e)
+          const error = await handleError({
+            error: e,
+            errorableUuid,
+            errorableType,
+          })
           responseResolve(Result.error(error))
         })
     },
@@ -126,7 +153,7 @@ async function runStep({
     const { messageCount, stepStartTime } = streamConsumer.setup(step)
     const providerProcessor = new ProviderProcessor({
       source,
-      documentLogUuid,
+      documentLogUuid: errorableUuid,
       config: step.config,
       apiProvider: step.provider,
       messages: step.conversation.messages,

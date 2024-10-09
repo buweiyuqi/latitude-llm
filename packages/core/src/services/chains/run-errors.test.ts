@@ -1,5 +1,6 @@
 import { Chain, ContentType, MessageRole } from '@latitude-data/compiler'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { runChain } from './run'
 
 import { Workspace } from '../../browser'
 import {
@@ -16,7 +17,6 @@ import { ChainValidator } from './ChainValidator'
 
 let finishReason: string = 'stop'
 
-const chainValidatorCall = vi.spyOn(ChainValidator.prototype, 'call')
 function createMockAiResponse(text: string, totalTokens: number) {
   return Result.ok({
     type: 'text' as 'text',
@@ -74,9 +74,7 @@ describe('run chain error handling', () => {
   })
 
   it.only('stores error when default provider quota is exceeded', async () => {
-    const module = await import('./run')
-    const { runChain } = module
-
+    const chainValidatorCall = vi.spyOn(ChainValidator.prototype, 'call')
     chainValidatorCall.mockImplementation(() =>
       Promise.resolve(
         Result.error(
@@ -103,9 +101,15 @@ describe('run chain error handling', () => {
         message: 'You have exceeded your maximum number of free runs for today',
       }),
     )
-    /* expect(response.error?.dbError).toEqual({ */
-    /*   code: RunErrorCodes.DefaultProviderExceededQuota, */
-    /*   errorableEntity: ErrorableEntity.DocumentLog, */
-    /* }) */
+    expect(response.error?.dbError).toEqual({
+      id: expect.any(Number),
+      errorableUuid: expect.any(String),
+      errorableType: ErrorableEntity.DocumentLog,
+      code: RunErrorCodes.DefaultProviderExceededQuota,
+      message: 'You have exceeded your maximum number of free runs for today',
+      details: null,
+      createdAt: expect.any(Date),
+      updatedAt: expect.any(Date),
+    })
   })
 })
