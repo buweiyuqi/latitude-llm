@@ -45,7 +45,7 @@ export async function mergeCommit(commit: Commit, db = database) {
 
     if (recomputedResults.error) return recomputedResults
     if (Object.keys(recomputedResults.value.errors).length > 0) {
-      console.log("ERRORS", recomputedResults.value.errors)
+      console.log('ERRORS', recomputedResults.value.errors)
       return Result.error(
         new UnprocessableEntityError(
           'There are errors in the updated documents in this version',

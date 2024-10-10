@@ -46,6 +46,7 @@ export async function saveOrPublishProviderLogs<T extends StreamType>({
         }
       : undefined,
   }
+
   if (saveSyncProviderLogs) {
     const providerLog = await createProviderLog(providerLogsData).then((r) =>
       r.unwrap(),

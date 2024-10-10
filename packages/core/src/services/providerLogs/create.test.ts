@@ -1,6 +1,6 @@
 import * as factories from '@latitude-data/core/factories'
 import { eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ProviderApiKey, Workspace } from '../../browser'
 import { database } from '../../client'
@@ -20,6 +20,10 @@ let providerProps: CreateProviderLogProps
 let apiKeyId: number | undefined = undefined
 let documentLogUuid: string | undefined
 
+const publisherSpy = vi.spyOn(
+  await import('../../events/publisher').then((f) => f.publisher),
+  'publishLater',
+)
 describe('create provider', () => {
   beforeEach(async () => {
     const { workspace: wp, userData } = await factories.createWorkspace()
@@ -68,6 +72,16 @@ describe('create provider', () => {
         documentLogUuid: null,
       }),
     )
+  })
+
+  it('publish event', async () => {
+    const providerLog = await createProviderLog(providerProps).then((r) =>
+      r.unwrap(),
+    )
+    expect(publisherSpy).toHaveBeenCalledWith({
+      type: 'providerLogCreated',
+      data: providerLog,
+    })
   })
 
   it('touch latitude API key', async () => {
