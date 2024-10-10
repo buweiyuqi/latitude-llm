@@ -116,6 +116,7 @@ export async function ai({
       })
     }
 
+    console.log("STREAM_TEXT", streamText)
     const result = await streamText(commonOptions)
     return Result.ok({
       type: 'text',

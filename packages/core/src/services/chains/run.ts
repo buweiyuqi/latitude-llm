@@ -160,6 +160,7 @@ async function runStep({
       messages: step.conversation.messages,
       saveSyncProviderLogs: step.chainCompleted,
     })
+
     const aiResult = await ai({
       messages: step.conversation.messages,
       config: step.config,
@@ -180,6 +181,7 @@ async function runStep({
 
     if (step.chainCompleted) {
       streamConsumer.chainCompleted({ step, response })
+
       return response
     } else {
       streamConsumer.stepCompleted(response)
@@ -197,7 +199,6 @@ async function runStep({
       })
     }
   } catch (e: unknown) {
-    console.log('Errror', e)
     const error = streamConsumer.chainError(e)
     throw error
   }
