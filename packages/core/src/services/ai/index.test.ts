@@ -1,9 +1,23 @@
 import { Message, MessageRole } from '@latitude-data/compiler'
+import { APICallError } from 'ai'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ProviderApiKey, Providers, RunErrorCodes } from '../../browser'
 import { ChainError } from '../chains/ChainErrors'
+import { ai } from './index'
 
+const PROVIDER_PAYLOAD: ProviderApiKey = {
+  id: 33,
+  authorId: '1',
+  workspaceId: 1,
+  provider: Providers.OpenAI,
+  name: 'openai',
+  token: 'fake-openai-api-key',
+  url: 'https://api.openai.com',
+  lastUsedAt: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+}
 describe('ai function', () => {
   it('should throw an error if Google provider is used without a user message', async () => {
     // @ts-expect-error
@@ -21,8 +35,6 @@ describe('ai function', () => {
       { role: MessageRole.system, content: 'System message' },
     ]
 
-    const module = await import('../ai')
-    const ai = module.ai
     await expect(
       ai({ provider, config, messages }).then((r) => r.unwrap()),
     ).rejects.toThrowError(
@@ -33,38 +45,73 @@ describe('ai function', () => {
     )
   })
 
-  it.only('throw a ChainError when AI fails with APICallError', async () => {
-    const module = await import('../ai')
-    const ai = module.ai
-    const AISdk = await vi.importMock<typeof import('ai')>('ai')
-    AISdk.streamText.mockRejectedValue(
-      new AISdk.APICallError({
+  it('throw a ChainError when AI fails with APICallError', async () => {
+    const streamTextModk = vi.fn()
+    streamTextModk.mockRejectedValue(
+      new APICallError({
         message: 'API call error',
         url: 'https://api.openai.com',
-        requestBodyValues: {},
+        responseBody: '[RESPONSE_BODY]',
+        requestBodyValues: {
+          something: 'value',
+        },
       }),
     )
-    const provider: ProviderApiKey = {
-      id: 33,
-      authorId: '1',
-      workspaceId: 1,
-      provider: Providers.OpenAI,
-      name: 'openai',
-      token: 'fake-openai-api-key',
-      url: 'https://api.openai.com',
-      lastUsedAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-
     await expect(
-      ai({ provider, config: { model: 'gpt-4o' }, messages: [] }).then((r) =>
-        r.unwrap(),
-      ),
+      ai({
+        provider: PROVIDER_PAYLOAD,
+        config: { model: 'gpt-4o' },
+        messages: [],
+        aiSdkProvider: {
+          streamText: streamTextModk,
+        },
+      }).then((r) => r.unwrap()),
     ).rejects.toThrowError(
       new ChainError({
         code: RunErrorCodes.AIRunError,
-        message: 'API call error',
+        message: 'Error: API call error and response body: [RESPONSE_BODY]',
+      }),
+    )
+  })
+
+  it('throw a ChainError when AI fails with generic Error', async () => {
+    const streamTextModk = vi.fn()
+    streamTextModk.mockRejectedValue(new Error('Some error'))
+
+    await expect(
+      ai({
+        provider: PROVIDER_PAYLOAD,
+        config: { model: 'gpt-4o' },
+        messages: [],
+        aiSdkProvider: {
+          streamText: streamTextModk,
+        },
+      }).then((r) => r.unwrap()),
+    ).rejects.toThrowError(
+      new ChainError({
+        code: RunErrorCodes.AIRunError,
+        message: 'Unknown error: Some error',
+      }),
+    )
+  })
+
+  it('throw a ChainError when AI fails with unknow Error', async () => {
+    const streamTextModk = vi.fn()
+    streamTextModk.mockRejectedValue('something weird')
+
+    await expect(
+      ai({
+        provider: PROVIDER_PAYLOAD,
+        config: { model: 'gpt-4o' },
+        messages: [],
+        aiSdkProvider: {
+          streamText: streamTextModk,
+        },
+      }).then((r) => r.unwrap()),
+    ).rejects.toThrowError(
+      new ChainError({
+        code: RunErrorCodes.AIRunError,
+        message: 'Unknown error: something weird',
       }),
     )
   })

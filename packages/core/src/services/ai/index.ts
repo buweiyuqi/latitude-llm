@@ -6,9 +6,9 @@ import {
   CoreTool,
   jsonSchema,
   ObjectStreamPart,
-  streamObject,
+  streamObject as originalStreamObject,
+  streamText as originalStreamText,
   StreamObjectResult,
-  streamText,
   StreamTextResult,
   TextStreamPart,
 } from 'ai'
@@ -21,6 +21,11 @@ import { buildTools } from './buildTools'
 import { handleAICallAPIError } from './handleError'
 import { createProvider, PartialConfig } from './helpers'
 
+const DEFAULT_AI_SDK_PROVIDER = {
+  streamText: originalStreamText,
+  streamObject: originalStreamObject,
+}
+type AISDKProvider = typeof DEFAULT_AI_SDK_PROVIDER
 type AIReturnObject = {
   type: 'object'
   data: Pick<
@@ -46,6 +51,7 @@ export type StreamChunk =
   | TextStreamPart<Record<string, CoreTool>>
   | ObjectStreamPart<unknown>
 
+type ObjectOutput = 'object' | 'array' | 'no-schema' | undefined
 export async function ai({
   provider: apiProvider,
   prompt,
@@ -53,13 +59,15 @@ export async function ai({
   config,
   schema,
   output,
+  aiSdkProvider,
 }: {
   provider: ProviderApiKey
   config: PartialConfig
   messages: Message[]
   prompt?: string
   schema?: JSONSchema7
-  output?: 'object' | 'array' | 'no-schema' | undefined
+  output?: ObjectOutput
+  aiSdkProvider?: Partial<AISDKProvider>
 }): Promise<
   TypedResult<
     AIReturn<StreamType>,
@@ -70,6 +78,10 @@ export async function ai({
     >
   >
 > {
+  const { streamText, streamObject } = {
+    ...DEFAULT_AI_SDK_PROVIDER,
+    ...(aiSdkProvider || {}),
+  }
   try {
     const { provider, token: apiKey, url } = apiProvider
     const model = config.model
@@ -116,7 +128,6 @@ export async function ai({
       })
     }
 
-    console.log("STREAM_TEXT", streamText)
     const result = await streamText(commonOptions)
     return Result.ok({
       type: 'text',

@@ -4,25 +4,16 @@ import { RunErrorCodes } from '../../constants'
 import { Result } from '../../lib'
 import { ChainError } from '../chains/ChainErrors'
 
-function buildAIApiError(error: APICallError) {
-  return new ChainError({
-    code: RunErrorCodes.AIRunError,
-    message: error.message,
-  })
-}
-
 export function handleAICallAPIError(e: unknown) {
   const isApiError = APICallError.isInstance(e)
-
-  let error: ChainError<RunErrorCodes.AIRunError>
-  if (isApiError) {
-    error = buildAIApiError(e)
-  } else {
-    error = new ChainError({
+  return Result.error(
+    new ChainError({
       code: RunErrorCodes.AIRunError,
-      message: 'Unknown error',
-    })
-  }
-
-  return Result.error(error)
+      message: isApiError
+        ? `Error: ${e.message} and response body: ${e.responseBody}`
+        : e instanceof Error
+          ? `Unknown error: ${e.message}`
+          : `Unknown error: ${e}`,
+    }),
+  )
 }
