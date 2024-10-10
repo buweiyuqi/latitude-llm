@@ -18,6 +18,7 @@ import { ProviderApiKey, RunErrorCodes, StreamType } from '../../browser'
 import { Result, TypedResult } from '../../lib'
 import { ChainError } from '../chains/ChainErrors'
 import { buildTools } from './buildTools'
+import { handleAICallAPIError } from './handleError'
 import { createProvider, PartialConfig } from './helpers'
 
 type AIReturnObject = {
@@ -62,64 +63,72 @@ export async function ai({
 }): Promise<
   TypedResult<
     AIReturn<StreamType>,
-    ChainError<RunErrorCodes.AIProviderConfigError>
+    ChainError<
+      | RunErrorCodes.AIProviderConfigError
+      | RunErrorCodes.AIRunError
+      | RunErrorCodes.Unknown
+    >
   >
 > {
-  const { provider, token: apiKey, url } = apiProvider
-  const model = config.model
+  try {
+    const { provider, token: apiKey, url } = apiProvider
+    const model = config.model
 
-  const languageModelResult = createProvider({
-    messages,
-    provider,
-    apiKey,
-    config,
-    ...(url ? { url } : {}),
-  })
-
-  if (languageModelResult.error) return languageModelResult
-
-  const languageModel = languageModelResult.value(model)
-  const toolsResult = buildTools(config.tools)
-  if (toolsResult.error) return toolsResult
-
-  const commonOptions = {
-    ...omit(config, ['schema']),
-    model: languageModel,
-    prompt,
-    messages: messages as CoreMessage[],
-    tools: toolsResult.value,
-  }
-
-  if (schema && output) {
-    const result = await streamObject({
-      ...commonOptions,
-      schema: jsonSchema(schema),
-      // output is valid but depending on the type of schema
-      // there might be a mismatch (e.g you pass an object schema but the
-      // output is "array"). Not really an issue we need to defend atm.
-      output: output as any,
+    const languageModelResult = createProvider({
+      messages,
+      provider,
+      apiKey,
+      config,
+      ...(url ? { url } : {}),
     })
 
+    if (languageModelResult.error) return languageModelResult
+
+    const languageModel = languageModelResult.value(model)
+    const toolsResult = buildTools(config.tools)
+    if (toolsResult.error) return toolsResult
+
+    const commonOptions = {
+      ...omit(config, ['schema']),
+      model: languageModel,
+      prompt,
+      messages: messages as CoreMessage[],
+      tools: toolsResult.value,
+    }
+
+    if (schema && output) {
+      const result = await streamObject({
+        ...commonOptions,
+        schema: jsonSchema(schema),
+        // output is valid but depending on the type of schema
+        // there might be a mismatch (e.g you pass an object schema but the
+        // output is "array"). Not really an issue we need to defend atm.
+        output: output as any,
+      })
+
+      return Result.ok({
+        type: 'object',
+        data: {
+          fullStream: result.fullStream,
+          object: result.object,
+          usage: result.usage,
+        },
+      })
+    }
+
+    const result = await streamText(commonOptions)
     return Result.ok({
-      type: 'object',
+      type: 'text',
       data: {
         fullStream: result.fullStream,
-        object: result.object,
+        text: result.text,
         usage: result.usage,
+        toolCalls: result.toolCalls,
       },
     })
+  } catch (e) {
+    return handleAICallAPIError(e)
   }
-
-  const result = await streamText(commonOptions)
-  return Result.ok({
-    type: 'text',
-    data: {
-      fullStream: result.fullStream,
-      text: result.text,
-      usage: result.usage,
-      toolCalls: result.toolCalls,
-    },
-  })
 }
 
 export { estimateCost } from './estimateCost'

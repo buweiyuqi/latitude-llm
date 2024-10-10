@@ -8,9 +8,9 @@ import {
   StreamType,
 } from '../../../browser'
 import { StreamCommonData } from '../../../events/events'
-import { TypedResult } from '../../../lib'
-import { AIReturn, PartialConfig, StreamChunk } from '../../ai'
+import { AIReturn, PartialConfig } from '../../ai'
 import { ChainError } from '../ChainErrors'
+import { StreamConsumeReturn } from '../ChainStreamConsumer/consumeStream'
 import { processStreamObject } from './processStreamObject'
 import { processStreamText } from './processStreamText'
 import { saveOrPublishProviderLogs } from './saveOrPublishProviderLogs'
@@ -62,10 +62,7 @@ export class ProviderProcessor {
   }: {
     aiResult: Awaited<AIReturn<StreamType>>
     startTime: number
-    streamConsumedResult: TypedResult<
-      StreamChunk[],
-      ChainError<RunErrorCodes.AIRunError>
-    >
+    streamConsumedResult: StreamConsumeReturn
   }) {
     this.throwIfNotValidStreamType(aiResult)
 

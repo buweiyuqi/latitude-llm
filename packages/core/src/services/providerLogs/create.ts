@@ -1,14 +1,23 @@
 import { Message, ToolCall } from '@latitude-data/compiler'
-import { LanguageModelUsage } from 'ai'
+import { FinishReason, LanguageModelUsage } from 'ai'
 
-import { LogSources, ProviderLog, Providers } from '../../browser'
+import {
+  ErrorableEntity,
+  LogSources,
+  ProviderLog,
+  Providers,
+  RunError,
+  RunErrorCodes,
+} from '../../browser'
 import { database } from '../../client'
 import { publisher } from '../../events/publisher'
 import { Result, Transaction } from '../../lib'
 import { providerLogs } from '../../schema'
 import { estimateCost, PartialConfig } from '../ai'
 import { touchApiKey } from '../apiKeys'
+import { StreamConsumeReturn } from '../chains/ChainStreamConsumer/consumeStream'
 import { touchProviderApiKey } from '../providerApiKeys/touch'
+import { createRunError } from '../runErrors/create'
 
 const TO_MILLICENTS_FACTOR = 100_000
 
@@ -29,6 +38,13 @@ export type CreateProviderLogProps = {
   apiKeyId?: number
   documentLogUuid?: string
   costInMillicents?: number
+  finishReason: StreamConsumeReturn['finishReason']
+  providerError?: {
+    errorableType: ErrorableEntity
+    errorableUuid: string
+    errorCode: RunErrorCodes
+    message: string
+  }
 }
 
 export async function createProviderLog(
@@ -49,10 +65,30 @@ export async function createProviderLog(
     documentLogUuid,
     generatedAt,
     costInMillicents,
+    finishReason,
+    providerError,
   }: CreateProviderLogProps,
   db = database,
 ) {
   return await Transaction.call<ProviderLog>(async (trx) => {
+    let error: RunError | undefined
+    if (providerError) {
+      error = await createRunError(
+        {
+          data: {
+            errorableUuid: providerError.errorableUuid,
+            errorableType: providerError.errorableType,
+            code: providerError.errorCode,
+            message: providerError.message,
+            details: null,
+          },
+        },
+        trx,
+      ).then((r) => r.unwrap())
+    }
+
+    console.log('ERROR', error)
+
     const cost =
       costInMillicents ??
       Math.floor(
@@ -77,6 +113,7 @@ export async function createProviderLog(
         duration,
         source,
         apiKeyId,
+        finishReason,
       })
       .returning()
 

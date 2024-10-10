@@ -196,6 +196,7 @@ async function runStep({
       })
     }
   } catch (e: unknown) {
+    console.log('Errror', e)
     const error = streamConsumer.chainError(e)
     throw error
   }
