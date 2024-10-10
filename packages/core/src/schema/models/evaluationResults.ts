@@ -24,10 +24,7 @@ export const evaluationResults = latitudeSchema.table(
     documentLogId: bigint('document_log_id', { mode: 'number' })
       .notNull()
       .references(() => documentLogs.id),
-    // TODO: Make this nullable. An evaluation result can fail before
-    // calling the AI. We want to store the result + error to let users know
     providerLogId: bigint('provider_log_id', { mode: 'number' })
-      .notNull()
       .references(() => providerLogs.id),
     resultableType: evaluationResultTypes('resultable_type'),
     resultableId: bigint('resultable_id', { mode: 'number' }),

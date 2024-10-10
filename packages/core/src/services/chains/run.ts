@@ -153,7 +153,8 @@ async function runStep({
     const { messageCount, stepStartTime } = streamConsumer.setup(step)
     const providerProcessor = new ProviderProcessor({
       source,
-      documentLogUuid: errorableUuid,
+      errorableUuid,
+      errorableType,
       config: step.config,
       apiProvider: step.provider,
       messages: step.conversation.messages,

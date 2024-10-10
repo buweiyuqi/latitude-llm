@@ -2,6 +2,7 @@ import { Message } from '@latitude-data/compiler'
 import { v4 } from 'uuid'
 
 import {
+  ErrorableEntity,
   LogSources,
   ProviderApiKey,
   RunErrorCodes,
@@ -18,34 +19,39 @@ import { saveOrPublishProviderLogs } from './saveOrPublishProviderLogs'
 export class ProviderProcessor {
   private apiProvider: ProviderApiKey
   private source: LogSources
-  private documentLogUuid?: string
   private workspaceId: number
   private config: PartialConfig
   private messages: Message[]
   private saveSyncProviderLogs: boolean
+  private errorableUuid: string
+  private errorableType: ErrorableEntity
 
   constructor({
     apiProvider,
     source,
-    documentLogUuid,
     config,
     messages,
     saveSyncProviderLogs,
+    errorableUuid,
+    errorableType,
   }: {
     apiProvider: ProviderApiKey
     source: LogSources
-    documentLogUuid?: string
     config: PartialConfig
     messages: Message[]
     saveSyncProviderLogs: boolean
+    errorableUuid: string
+    errorableType: ErrorableEntity
   }) {
     this.apiProvider = apiProvider
     this.workspaceId = apiProvider.workspaceId
     this.source = source
-    this.documentLogUuid = documentLogUuid
+    this.errorableUuid = errorableUuid
     this.config = config
     this.messages = messages
     this.saveSyncProviderLogs = saveSyncProviderLogs
+    this.errorableUuid = errorableUuid
+    this.errorableType = errorableType
   }
 
   /**
@@ -76,6 +82,8 @@ export class ProviderProcessor {
       streamConsumedResult,
       data: providerLogsData,
       saveSyncProviderLogs: this.saveSyncProviderLogs,
+      errorableUuid: this.errorableUuid,
+      errorableType: this.errorableType,
     })
 
     return { ...response, providerLog }
@@ -108,12 +116,14 @@ export class ProviderProcessor {
     return {
       uuid: v4(),
 
-      // Data
+      // AI Provider Data
       workspaceId: this.workspaceId,
       source: this.source,
       providerId: this.apiProvider.id,
       providerType: this.apiProvider.provider,
-      documentLogUuid: this.documentLogUuid,
+      // FIXME: This should be polymorphic
+      // https://github.com/latitude-dev/latitude-llm/issues/229
+      documentLogUuid: this.errorableUuid,
 
       // AI
       duration: endTime - startTime,

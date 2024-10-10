@@ -1,5 +1,5 @@
 import { Message, ToolCall } from '@latitude-data/compiler'
-import { FinishReason, LanguageModelUsage } from 'ai'
+import { LanguageModelUsage } from 'ai'
 
 import {
   ErrorableEntity,
@@ -29,16 +29,16 @@ export type CreateProviderLogProps = {
   model: string
   config: PartialConfig
   messages: Message[]
-  responseText?: string
-  responseObject?: unknown
-  toolCalls?: ToolCall[]
   usage: LanguageModelUsage
   duration: number
   source: LogSources
+  finishReason?: StreamConsumeReturn['finishReason']
   apiKeyId?: number
+  responseText?: string
+  responseObject?: unknown
+  toolCalls?: ToolCall[]
   documentLogUuid?: string
   costInMillicents?: number
-  finishReason: StreamConsumeReturn['finishReason']
   providerError?: {
     errorableType: ErrorableEntity
     errorableUuid: string
@@ -65,7 +65,7 @@ export async function createProviderLog(
     documentLogUuid,
     generatedAt,
     costInMillicents,
-    finishReason,
+    finishReason = 'stop',
     providerError,
   }: CreateProviderLogProps,
   db = database,
@@ -87,13 +87,11 @@ export async function createProviderLog(
       ).then((r) => r.unwrap())
     }
 
-    console.log('ERROR', error)
-
     const cost =
       costInMillicents ??
       Math.floor(
         estimateCost({ provider: providerType, model, usage }) *
-          TO_MILLICENTS_FACTOR,
+        TO_MILLICENTS_FACTOR,
       )
     const inserts = await trx
       .insert(providerLogs)
@@ -114,11 +112,13 @@ export async function createProviderLog(
         source,
         apiKeyId,
         finishReason,
+        errorId: error?.id,
       })
       .returning()
 
     const log = inserts[0]! as ProviderLog
     await touchProviderApiKey(providerId, trx)
+
     if (apiKeyId) await touchApiKey(apiKeyId, trx)
 
     publisher.publishLater({

@@ -34,8 +34,9 @@ export async function mergeCommit(commit: Commit, db = database) {
 
     const workspace = await findWorkspaceFromCommit(commit, tx)
 
-    if (!workspace)
+    if (!workspace) {
       return Result.error(new NotFoundError('Workspace not found'))
+    }
 
     const recomputedResults = await recomputeChanges(
       { draft: commit, workspaceId: workspace.id },
@@ -44,6 +45,7 @@ export async function mergeCommit(commit: Commit, db = database) {
 
     if (recomputedResults.error) return recomputedResults
     if (Object.keys(recomputedResults.value.errors).length > 0) {
+      console.log("ERRORS", recomputedResults.value.errors)
       return Result.error(
         new UnprocessableEntityError(
           'There are errors in the updated documents in this version',
