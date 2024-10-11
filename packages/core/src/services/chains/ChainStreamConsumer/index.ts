@@ -6,14 +6,13 @@ import {
   ChainStepResponse,
   RunErrorCodes,
   StreamEventTypes,
-  StreamType,
 } from '../../../constants'
 import { objectToString } from '../../../helpers'
 import { Config } from '../../ai'
 import { ChainError } from '../ChainErrors'
 import { ValidatedStep } from '../ChainValidator'
 
-export function parseResponseText(response: ChainStepResponse<StreamType>) {
+export function parseResponseText(response: ChainStepResponse) {
   if (response.streamType === 'object') return response.text || ''
 
   const text = response.text
@@ -61,7 +60,7 @@ export class ChainStreamConsumer {
     controller,
   }: {
     controller: ReadableStreamDefaultController
-    response: ChainStepResponse<StreamType>
+    response: ChainStepResponse
     config: Config
   }) {
     const content = parseResponseText(response)
@@ -139,7 +138,7 @@ export class ChainStreamConsumer {
     return { messageCount, stepStartTime: Date.now() }
   }
 
-  stepCompleted(response: ChainStepResponse<StreamType>) {
+  stepCompleted(response: ChainStepResponse) {
     enqueueChainEvent(this.controller, {
       event: StreamEventTypes.Latitude,
       data: {
@@ -155,7 +154,7 @@ export class ChainStreamConsumer {
     response,
   }: {
     step: ValidatedStep
-    response: ChainStepResponse<StreamType>
+    response: ChainStepResponse
   }) {
     ChainStreamConsumer.chainCompleted({
       controller: this.controller,

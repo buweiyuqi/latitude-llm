@@ -1,4 +1,4 @@
-import { ChainStepResponse } from '../../../constants'
+import { ChainStepObjectResponse } from '../../../constants'
 import { StreamCommonData } from '../../../events/events'
 import { objectToString } from '../../../helpers'
 import { AIReturn } from '../../ai'
@@ -9,7 +9,7 @@ async function processResponse({
 }: {
   commonData: StreamCommonData
   aiResult: Awaited<AIReturn<'object'>>
-}): Promise<ChainStepResponse<'object'>> {
+}): Promise<ChainStepObjectResponse> {
   const object = await aiResult.data.object
   return {
     streamType: aiResult.type,

@@ -6,7 +6,6 @@ import {
   ChainStepResponse,
   LogSources,
   RunErrorCodes,
-  StreamType,
 } from '../../constants'
 import { generateUUIDIdentifier } from '../../lib/generateUUID'
 import { ai } from '../ai'
@@ -55,13 +54,11 @@ export async function runChain({
   // the AI run produce: Document logs and Evaluation results
   const documentLogUuid = generateUUID()
 
-  let responseResolve: (value?: ChainStepResponse<StreamType>) => void
+  let responseResolve: (value?: ChainStepResponse) => void
 
-  const response = new Promise<ChainStepResponse<StreamType> | undefined>(
-    (resolve) => {
-      responseResolve = resolve
-    },
-  )
+  const response = new Promise<ChainStepResponse | undefined>((resolve) => {
+    responseResolve = resolve
+  })
 
   const chainStartTime = Date.now()
   const stream = new ReadableStream<ChainEvent>({
@@ -111,7 +108,7 @@ async function iterate({
   controller: ReadableStreamDefaultController
   previousCount?: number
   documentLogUuid: string
-  previousResponse?: ChainStepResponse<StreamType>
+  previousResponse?: ChainStepResponse
   configOverrides?: ConfigOverrides
 }) {
   const prevText = previousResponse?.text

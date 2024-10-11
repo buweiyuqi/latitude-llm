@@ -2,7 +2,7 @@ import { createChain } from '@latitude-data/compiler'
 import { JSONSchema7 } from 'json-schema'
 
 import {
-  ChainStepResponse,
+  ChainStepObjectResponse,
   DocumentLog,
   EvaluationDto,
   EvaluationResultableType,
@@ -106,7 +106,7 @@ export const runEvaluation = async (
     ...run,
     response: run.response.then(async (res) => {
       await handleEvaluationResponse(
-        res as ChainStepResponse<'object'> | undefined,
+        res as ChainStepObjectResponse | undefined,
         documentUuid,
         evaluation,
         documentLog,
@@ -118,7 +118,7 @@ export const runEvaluation = async (
 }
 
 async function handleEvaluationResponse(
-  response: ChainStepResponse<'object'> | undefined,
+  response: ChainStepObjectResponse | undefined,
   documentUuid: string,
   evaluation: EvaluationDto,
   documentLog: DocumentLog,

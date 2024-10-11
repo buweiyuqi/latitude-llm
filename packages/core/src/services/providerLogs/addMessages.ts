@@ -7,7 +7,6 @@ import {
   objectToString,
   ProviderApiKey,
   ProviderLog,
-  StreamType,
   Workspace,
 } from '../../browser'
 import { unsafelyFindProviderApiKey } from '../../data-access'
@@ -42,13 +41,11 @@ export async function addMessages({
     )
   }
 
-  let responseResolve: (value?: ChainStepResponse<StreamType>) => void
+  let responseResolve: (value?: ChainStepResponse) => void
 
-  const response = new Promise<ChainStepResponse<StreamType> | undefined>(
-    (resolve) => {
-      responseResolve = resolve
-    },
-  )
+  const response = new Promise<ChainStepResponse | undefined>((resolve) => {
+    responseResolve = resolve
+  })
 
   const stream = new ReadableStream<ChainEvent>({
     start(controller) {

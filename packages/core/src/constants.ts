@@ -50,29 +50,26 @@ export const HELP_CENTER = {
 }
 
 export type StreamType = 'object' | 'text'
-export type ChainStepTextResponse = {
-  streamType: 'text'
+
+interface IChainStepResponse {
+  streamType: StreamType
   text: string
   usage: LanguageModelUsage
-  toolCalls: ToolCall[]
   documentLogUuid?: string
   providerLog?: ProviderLog
 }
 
-export type ChainStepObjectResponse = {
+export interface ChainStepTextResponse extends IChainStepResponse {
+  streamType: 'text'
+  toolCalls: ToolCall[]
+}
+
+export interface ChainStepObjectResponse extends IChainStepResponse {
   streamType: 'object'
   object: any
-  text: string
-  usage: LanguageModelUsage
-  documentLogUuid?: string
-  providerLog?: ProviderLog
 }
 
-export type ChainStepResponse<T extends StreamType> = T extends 'text'
-  ? ChainStepTextResponse
-  : T extends 'object'
-    ? ChainStepObjectResponse
-    : never
+export type ChainStepResponse = ChainStepTextResponse | ChainStepObjectResponse
 
 export enum LogSources {
   API = 'api',
@@ -128,7 +125,7 @@ export type LatitudeEventData =
     }
   | {
       type: ChainEventTypes.StepComplete
-      response: ChainStepResponse<StreamType>
+      response: ChainStepResponse
       documentLogUuid?: string
     }
   | {
@@ -136,7 +133,7 @@ export type LatitudeEventData =
       config: Config
       messages?: Message[]
       object?: any
-      response: ChainStepResponse<StreamType>
+      response: ChainStepResponse
       documentLogUuid?: string
     }
   | {
@@ -209,7 +206,7 @@ export type WorkspaceUsage = {
 }
 
 export type ChainCallResponseDto = Omit<
-  ChainStepResponse<StreamType>,
+  ChainStepResponse,
   'documentLogUuid' | 'providerLog'
 >
 
@@ -224,7 +221,7 @@ export type ChainEventDto =
     }
   | {
       type: ChainEventTypes.StepComplete
-      response: Omit<ChainStepResponse<StreamType>, 'providerLog'>
+      response: Omit<ChainStepResponse, 'providerLog'>
       uuid?: string
     }
   | {
@@ -232,7 +229,7 @@ export type ChainEventDto =
       config: Config
       messages?: Message[]
       object?: any
-      response: Omit<ChainStepResponse<StreamType>, 'providerLog'>
+      response: Omit<ChainStepResponse, 'providerLog'>
       uuid?: string
     }
   | {

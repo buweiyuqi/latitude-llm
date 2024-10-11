@@ -1,4 +1,4 @@
-import { ChainStepResponse } from '../../../constants'
+import { ChainStepTextResponse } from '../../../constants'
 import { StreamCommonData } from '../../../events/events'
 import { AIReturn } from '../../ai'
 
@@ -8,7 +8,7 @@ async function processResponse({
 }: {
   commonData: StreamCommonData
   aiResult: Awaited<AIReturn<'text'>>
-}): Promise<ChainStepResponse<'text'>> {
+}): Promise<ChainStepTextResponse> {
   return {
     streamType: aiResult.type,
     documentLogUuid: commonData.documentLogUuid,
