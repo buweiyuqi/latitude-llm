@@ -8,6 +8,7 @@ import { MarkerSeverity, type editor } from 'monaco-editor'
 
 import { Button, Icon, Text } from '../../../atoms'
 import { type DocumentError, type DocumentTextEditorProps } from '../types'
+import { CopilotSection } from './CopilotSection'
 import { MonacoDiffEditor } from './DiffEditor'
 import { RegularMonacoEditor } from './RegularEditor'
 
@@ -20,6 +21,7 @@ export function DocumentTextEditor({
   isSaved,
   actionButtons,
   diff,
+  copilot,
 }: DocumentTextEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
   const diffEditorRef = useRef<editor.IStandaloneDiffEditor | null>(null)
@@ -91,27 +93,38 @@ export function DocumentTextEditor({
           editorRef={editorRef}
           value={value}
           path={path}
-          readOnlyMessage={readOnlyMessage}
+          readOnlyMessage={
+            readOnlyMessage ||
+            (copilot?.isLoading ? 'Copilot is thinking...' : undefined)
+          }
           onChange={handleValueChange}
           errorMarkers={errorMarkers}
         />
       )}
       {diff && (
         <div className='flex w-full px-2 bg-secondary'>
-          <div className='flex flex-row w-full items-center gap-2 justify-end bg-background border border-border rounded-md p-4'>
+          <div className='flex flex-col w-full items-center gap-2 bg-background border border-border rounded-md p-2'>
             {diff.description && (
-              <div className='w-full'>
+              <div className='w-full max-h-24 overflow-y-auto custom-scrollbar px-2'>
                 <Text.H5 color='foregroundMuted'>{diff.description}</Text.H5>
               </div>
             )}
-            <Button variant='outline' fancy onClick={handleRejectDiff}>
-              Discard
-            </Button>
-            <Button onClick={handleAcceptDiff} fancy>
-              Apply
-            </Button>
+            <div className='flex flex-row gap-2 w-full justify-end'>
+              <Button variant='outline' fancy onClick={handleRejectDiff}>
+                Discard
+              </Button>
+              <Button onClick={handleAcceptDiff} fancy>
+                Apply
+              </Button>
+            </div>
           </div>
         </div>
+      )}
+      {!readOnlyMessage && !diff && copilot && (
+        <CopilotSection
+          isLoading={copilot.isLoading}
+          requestSuggestion={copilot.requestSuggestion}
+        />
       )}
       <div className='flex flex-row w-full px-2 pb-3 pt-1 items-center justify-between gap-2 bg-secondary'>
         <div className='flex flex-row items-center gap-2'>

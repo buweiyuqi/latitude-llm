@@ -25,6 +25,7 @@ import {
   useCurrentProject,
 } from '@latitude-data/web-ui'
 import { createDraftWithContentAction } from '$/actions/commits/createDraftWithContentAction'
+import { requestSuggestionAction } from '$/actions/copilot/requestSuggestion'
 import { type AddMessagesActionFn } from '$/actions/sdk/addMessagesAction'
 import type { RunDocumentActionFn } from '$/actions/sdk/runDocumentAction'
 import EditorHeader from '$/components/EditorHeader'
@@ -192,6 +193,40 @@ export default function DocumentEditor({
     configSchema,
   })
 
+  const {
+    execute: executeRequestSuggestionAction,
+    isPending: isCopilotLoading,
+  } = useLatitudeAction(requestSuggestionAction, {
+    onSuccess: ({
+      data: suggestion,
+    }: {
+      data: { code: string; response: string }
+    }) => {
+      setDiff({
+        newValue: suggestion.code,
+        description: suggestion.response,
+        onAccept: (newValue: string) => {
+          setDiff(undefined)
+          onChange(newValue)
+        },
+        onReject: () => {
+          setDiff(undefined)
+        },
+      })
+    },
+  })
+  const requestSuggestion = useCallback(
+    (prompt: string) => {
+      executeRequestSuggestionAction({
+        projectId: project.id,
+        commitUuid: commit.uuid,
+        documentUuid: document.documentUuid,
+        request: prompt,
+      })
+    },
+    [executeRequestSuggestionAction],
+  )
+
   const isMerged = commit.mergedAt !== null
   return (
     <>
@@ -242,6 +277,10 @@ export default function DocumentEditor({
                     <Text.H6>Refine</Text.H6>
                   </Button>
                 }
+                copilot={{
+                  isLoading: isCopilotLoading,
+                  requestSuggestion,
+                }}
               />
             </Suspense>
           </div>
